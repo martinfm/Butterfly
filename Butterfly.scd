@@ -3,7 +3,7 @@
 Butterfly - an audio visualizer for SuperCollider inspired by the butterfly effect
 
 Copyright (C) 2015 Fiore Martin
-Copyright (C) 2015 Patrick Hartono
+
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -45,9 +45,10 @@ window.layout_(layout);
 
 /*-----------------------SPRITE CREATION-------------------------*/
 
-spriteFactory = {|tID, canvas|
-  var mPos;
+spriteFactory = {|tID, canvas, pos, area|
+  var mPos = pos;
   var mVal = 0.0;
+  var mArea = area;
   /* return */ (
     position:20@20,
 
@@ -65,19 +66,25 @@ spriteFactory = {|tID, canvas|
       self;
     },
 
+    f_updateArea:{|self, area|
+      mArea = area;
+      self;
+    },
+
     f_draw: {|self|
       /* pos is the centre of the drawing */
-      var pos = mPos;
-      var middle = pos.y;
-      var oscill = (pos.x+(100 * mVal))@middle;
+      var middle = mPos.y;
+      var oscill = (mPos.x+(100 * mVal))@middle;
 
-      Pen.moveTo(pos.x@0); // starting drawing point
-      Pen.curveTo(pos.x@canvas.bounds.height,oscill,oscill);
+      //var halfHeight = canvas.bounds.height /2 ;
+      //Pen.moveTo(pos.x@(halfHeight - (halfHeight*mVal))); // starting drawing point
+      //Pen.curveTo(pos.x@halfHeight + (halfHeight*mVal) ,oscill,oscill);
 
+      var halfScreen = (canvas.bounds.height/2);
 
-      /*var halfScreen = (canvas.bounds.height/2);
-      Pen.moveTo(pos.x @ (pos.y - (mVal * halfScreen)) ) ;
-      Pen.lineTo(pos.x@ (pos.y + (mVal * halfScreen)));*/
+      Pen.width = mArea.width/3;
+      Pen.moveTo(mPos.x @ (mPos.y - (mVal * halfScreen)) ) ;
+      Pen.lineTo(mPos.x@ (mPos.y + (mVal * halfScreen)));
 
       Pen.stroke;
       self;
@@ -119,7 +126,7 @@ butterflyFactory = {| i, canvas |
       Pen.fill;
     },
 
-    f_updateBounds:{|self|
+    f_updateArea:{|self|
       var vBounds = canvas.bounds;
       var halfSize = size/2;
 
@@ -199,11 +206,17 @@ canvas.mouseDownAction_{|thisCanvas, x, y, modifiers, buttonNumber, clickCount|
           var normCoord = controller.mButterfly.f_toNormalCoord();
           var synth = Synth(("butterfly_"++i).asSymbol, [\x, normCoord.x, \y, normCoord.x] );
           var sprites = controller.mSprites;
+          var bounds = canvas.bounds;
+          var offset = bounds.width / (kUGENS_PER_SYNTH[i] * 2);
 
           controller.mSynthID = synth.asNodeID;
           kUGENS_PER_SYNTH[i].do({|j|
-            var newSprite = spriteFactory.(j, canvas);
+            var position = (offset+ ((bounds.width/kUGENS_PER_SYNTH[i])*j)) @ (bounds.height/2);
+            var area = Rect(position.x-offset, 0, 2*offset, bounds.height);
+
+            var newSprite = spriteFactory.(j,canvas, position, area);
             sprites.add(newSprite);
+
           });
 
         }{
@@ -262,14 +275,14 @@ canvas.drawFunc_({|thisView|
   controllers.do({|controller, i|
     var sprites = controller.mSprites;
     var butterfly = controller.mButterfly;
-    var size = sprites.size;
+    var numSprites = sprites.size;
 
     Pen.fillColor = kBUTTERFLY_COLORS[i];
     Pen.strokeColor = kBUTTERFLY_COLORS[i];
-    Pen.width = 5;
+    Pen.alpha = 0.5;
     /* update and draw sprites */
     sprites.do({|sprite, i|
-      sprite.f_updatePos(((bounds.width/size)*i) @ (bounds.height/2) );
+      //sprite.f_updatePos(((bounds.width/numSprites)*i) @ (bounds.height/2) );
       sprite.f_draw();
     });
 
@@ -286,8 +299,21 @@ canvas.drawFunc_({|thisView|
 /* start the animation */
 canvas.animate_(true).frameRate_(60);
 canvas.onResize_({
-  controllers.do({|controller|
-    controller.mButterfly.f_updateBounds();
+  controllers.do({|controller, i|
+    var sprites = controller.mSprites;
+    var numSprites = sprites.size;
+    var offset = canvas.bounds.width / (kUGENS_PER_SYNTH[i] * 2);
+    var bounds = canvas.bounds;
+
+    /* resize the butterfly areas */
+    controller.mButterfly.f_updateArea();
+
+    /* reposition the sprites to cover the new bounds */
+    sprites.do({|sprite, j|
+      var position = offset+( (bounds.width/numSprites)*j) @ (bounds.height/2);
+      sprite.f_updatePos(position);
+      sprite.f_updateArea(Rect(position.x-offset, 0, 2*offset, bounds.height));
+    });
   });
 });
 
@@ -303,7 +329,7 @@ window.onClose_({
 
 
 
-window.fullScreen;
+//window.fullScreen;
 window.front;
 
 
