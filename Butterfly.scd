@@ -1,4 +1,5 @@
-(/*
+(
+/*
 Butterfly - an audio visualizer for SuperCollider inspired by the butterfly effect
 
 Copyright (C) 2015 Fiore Martin
@@ -18,26 +19,34 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/*-------------------CONFIGURATION -----------------------------*/
+
+var kUGENS_PER_SYNTH = [3, 40, 40, 1];
+var kBUTTERFLY_COLORS = [Color.yellow, Color.green, Color.red, Color.blue];
 
 
 /*-----------------------INIT----------------------------------*/
-var window, controllerView, canvas, layout, spriteFactory, sprites,
-oscHandle, kNUM_CONTROLLERS = 3, controllers, kCONTROLLER_VIEW_HEIGHT = 200;
+var window, canvas, layout, spriteFactory, sprites, butterflyFactory, movingController = nil,
+oscHandle, kNUM_CONTROLLERS = 4, controllers, kCONTROLLER_VIEW_HEIGHT = 200;
 
-var kNUMS_UGENTS = [3, 40, 40];
 
 
 window = Window.new("Butterfly", 700@450, border:true);
+canvas =  UserView.new(window, 700@450);
 
-/* controller view */
-controllerView = HLayoutView.new(window, 900@kCONTROLLER_VIEW_HEIGHT);
-controllerView.fixedHeight = 100;
-controllerView.background = Color.gray;
+canvas.background = Color.black;
+
+
+window.acceptsMouseOver = true;
+layout = VLayout(canvas);
+layout.margins = 0;
+window.layout_(layout);
 
 
 /*-----------------------SPRITE CREATION-------------------------*/
 
-spriteFactory = {|tID|
+spriteFactory = {|tID, canvas|
+  var mPos;
   var mVal = 0.0;
   /* return */ (
     position:20@20,
@@ -52,15 +61,13 @@ spriteFactory = {|tID|
     },
 
     f_updatePos: {|self, pos|
-      var viewBounds = canvas.bounds;
-      /* saves the position as the nth cloumn and bounds.height  */
-      self['position'] = pos ;
+      mPos = pos;
       self;
     },
 
     f_draw: {|self|
       /* pos is the centre of the drawing */
-      var pos = self.position;
+      var pos = mPos;
       var middle = pos.y;
       var oscill = (pos.x+(100 * mVal))@middle;
 
@@ -78,58 +85,155 @@ spriteFactory = {|tID|
   );
 };
 
+/* the i determines the secotr in the view where this butterly operates */
+butterflyFactory = {| i, canvas |
+  var size = 15;
+  var mPos = Rect(0,0,1,1);
+  var mArea;
+  var mOn = false;
 
+  var butterfly = (
+
+    f_contains:{|self, x, y|
+      mPos.contains(x@y);
+    },
+
+    f_move:{|self, x, y|
+      if(mArea.contains(x@y)){
+        var newPos = mPos.moveTo(x, y);
+        newPos.left = newPos.left - (size/2);
+        newPos.top = newPos.top - (size/2);
+        mPos = newPos;
+
+      }
+    },
+
+    f_draw:{|self|
+      Pen.fillColor = if(mOn) { kBUTTERFLY_COLORS[i] } { Color.grey } ;
+
+      Pen.moveTo(mPos.leftTop);
+      Pen.lineTo(mPos.rightBottom);
+      Pen.lineTo(mPos.rightTop);
+      Pen.lineTo(mPos.leftBottom);
+      Pen.lineTo(mPos.leftTop);
+      Pen.fill;
+    },
+
+    f_updateBounds:{|self|
+      var vBounds = canvas.bounds;
+      var halfSize = size/2;
+
+      mPos = Rect(
+        /* left */
+        if( (i==0).or(i==2)){ 0 - halfSize }{ 0 +(vBounds.width/2) - halfSize },
+
+        /* top */
+        if( (i==0).or(i==1)){ (vBounds.height/2) - halfSize }{ vBounds.height-halfSize },
+
+        /* w */
+        size,
+
+        /* h */
+        size);
+
+      mArea = Rect(
+        /* left */
+        if( (i==0).or(i==2)){ 0 }{ vBounds.bounds.width/2 } ,
+
+        /* top */
+        if( (i==0).or(i==1)){ 0 }{ vBounds.height/2 },
+
+        /* w */
+        vBounds.width / 2 ,
+
+        /* h */
+        vBounds.height / 2
+      ) ;
+    },
+
+    f_switch:{|self|
+      mOn = mOn.not;
+      self;
+    },
+
+    f_isOn:{|self|
+      mOn;
+    },
+
+    f_toNormalCoord:{|self|
+      var x = ((mPos.left + (size/2)) - mArea.left) / mArea.width;
+      var invertedY = (mPos.top + (size/2)) - mArea.top ;
+      y = (mArea.height - invertedY) / mArea.height;
+
+      x@y;
+    }
+  );
+
+  /*return*/ butterfly;
+};
 
 /* ---------------- INIT CONTROLLERS --------------------- */
 
-/* controllers is an array of records (mSynthID, mSprites) */
+/* controllers is an array of records (mSynthID, mSprites, mButterflies) */
 
 controllers = Array.fill(kNUM_CONTROLLERS, ({|i|
-  var v = HLayoutView( controllerView, 350@kCONTROLLER_VIEW_HEIGHT);
-  var slider = Slider2D(v, 100@kCONTROLLER_VIEW_HEIGHT);
-  var v2 = VLayoutView( v, 100@kCONTROLLER_VIEW_HEIGHT);
-  var button = Button(v2, 100@50).states_([["Play",nil,nil],["Stop",nil,nil]]);
-  var box = NumberBox(v2, 100@50 ).value_(kNUMS_UGENTS[i]);
-  var separatorView = View(v, 50@50);
-
-  var record = (mSynthID:-1, mSprites:List.new);
-
-  button.action_({|thisButton|
-    var value = thisButton.value;
-    if(value == 1){ // play
-
-      /* creates a synth and store the synthID, this controlled id and the sprites */
-      var synth = Synth(("butterfly_"++i).asSymbol);
-      record.mSynthID = synth.asNodeID;
-      box.value.do({|j|
-        var newSprite = spriteFactory.(j);
-        record.mSprites.add(newSprite);
-      });
-
-    }{ // stop
-      s.sendMsg('/n_free', record.mSynthID);
-      record.mSprites.clear;
-      record.mSynthID = -1;
-    };
-  });
-
-
-
-  /*return*/ record;
+  (mSynthID:-1, mSprites:List.new, mButterfly: butterflyFactory.(i, canvas) );
 }));
 
 
-/* particle view */
-canvas =  UserView.new(window, 700@100);
-canvas.background = Color.black;
+canvas.mouseDownAction_{|thisCanvas, x, y, modifiers, buttonNumber, clickCount|
+  controllers.do({|controller, i|
+    if(controller.mButterfly.f_contains(x, y)){
+
+      if(buttonNumber == 0){ // left click moves
+        movingController = controller;
+      };
+
+      if(buttonNumber == 1){ // right click turns on/off
+        movingController = nil;
+        controller.mButterfly.f_switch();
 
 
-layout = VLayout(canvas, controllerView);
-layout.margins = 0;
-window.layout_(layout);
+        if(controller.mButterfly.f_isOn()){
+          /* turn the synth on */
+          var normCoord = controller.mButterfly.f_toNormalCoord();
+          var synth = Synth(("butterfly_"++i).asSymbol, [\x, normCoord.x, \y, normCoord.x] );
+          var sprites = controller.mSprites;
 
+          controller.mSynthID = synth.asNodeID;
+          kUGENS_PER_SYNTH[i].do({|j|
+            var newSprite = spriteFactory.(j, canvas);
+            sprites.add(newSprite);
+          });
 
+        }{
+          /* turn the synth off */
+          //s.sendMsg('/n_set', controller.mSynthID, "gate", 0);
+          s.sendMsg('/n_free', controller.mSynthID);
+          controller.mSprites.clear;
+          controller.mSynthID = -1;
+        }
+      };
+    }
+  });
+};
 
+canvas.mouseMoveAction_({|thisCanvas, x, y|
+  if(movingController.notNil){
+    var normalCoord;
+
+    movingController.mButterfly.f_move(x , y);
+
+    if(movingController.mButterfly.f_isOn()){
+      normalCoord = movingController.mButterfly.f_toNormalCoord();
+      s.sendMsg('/n_set', movingController.mSynthID, \x, normalCoord.x, \y, normalCoord.y);
+    }
+  };
+});
+
+canvas.mouseUpAction_({|thisCanvas, x, y, modifiers|
+  movingController = nil;
+});
 
 /*------------INSTALL THE OSC FUNCS -------------*/
 
@@ -153,15 +257,25 @@ oscHandle = OSCFunc.new({|msg|
 canvas.drawFunc_({|thisView|
   var bounds = thisView.bounds;
 
-  Pen.fillColor_(Color.yellow);
-  Pen.strokeColor_(Color.yellow);
 
-  controllers.do({|controllerItem|
-    var sprites = controllerItem.mSprites;
+
+  controllers.do({|controller, i|
+    var sprites = controller.mSprites;
+    var butterfly = controller.mButterfly;
     var size = sprites.size;
+
+    Pen.fillColor = kBUTTERFLY_COLORS[i];
+    Pen.strokeColor = kBUTTERFLY_COLORS[i];
+    Pen.width = 5;
     /* update and draw sprites */
-    sprites.do({|item, i| item.f_updatePos(((bounds.width/size)*i) @ (bounds.height/2))});
-    sprites.do(_.f_draw());
+    sprites.do({|sprite, i|
+      sprite.f_updatePos(((bounds.width/size)*i) @ (bounds.height/2) );
+      sprite.f_draw();
+    });
+
+    /* draw butterfly */
+    butterfly.f_draw();
+
   });
 
 });
@@ -171,46 +285,30 @@ canvas.drawFunc_({|thisView|
 
 /* start the animation */
 canvas.animate_(true).frameRate_(60);
+canvas.onResize_({
+  controllers.do({|controller|
+    controller.mButterfly.f_updateBounds();
+  });
+});
 
 window.onClose_({
   oscHandle.free;
+  controllers.do({|controller, i|
+    if(controller.mSynthID != -1){
+      s.sendMsg('/n_free', controller.mSynthID);
+    }
+  });
 });
 /* show GUI */
+
+
+
+window.fullScreen;
 window.front;
 
 
 
 )
-
-
-(
-SynthDef(\Kupu2_Noise2, {|out= 0, mod1= 8, mod2= 20000, mod3= 400, amp= 0.5|
-
-	var sig,noise, tick, send;
-
-	noise= Mix.fill(3, { arg i; BPF.ar(WhiteNoise.ar(mul: SinOsc.ar(MouseX.kr(0,8),phase:Rand (0,pi), mul:Rand( 0.1,1) )),MouseY.kr(0,20000) * Rand(0,400) )});
-1
-	Out.ar(out, Pan2.ar(noise, 0.01));
-
-	}).add;
-)
-
-(
-SynthDef(\Kupu2_Noise2, {|out= 0, mod1= 8, mod2= 20000, mod3= 400, amp= 0.5|
-
-	var sig,noise, tick, send;
-
-  noise= Mix.fill(3, { arg i; var bpf = BPF.ar(WhiteNoise.ar(mul: SinOsc.ar(MouseX.kr(0,3*i),phase:Rand (0,pi), mul:Rand( 0.1,1) )),(MouseY.kr(0,20000)) * Rand(0,120) );
-    SendTrig.kr(Impulse.kr(60), i, bpf.range(0,1));
-    bpf;
-  });
-
-
-	Out.ar(out, Pan2.ar(noise, 0.01));
-
-	}).add;
-)
-
 
 
 
@@ -236,7 +334,7 @@ d =  {
 d = Synth(\mixfill)
 d.free
 (
-SynthDef(\mixfill, {
+SynthDef(\butterfly_2, {
  // the same
  Mix.fill(40, { arg i ;
     var p =  Pulse.ar(Pulse.kr(4+(i*1), mul: 1/40).range(20,100) , width:SinOsc.kr(MouseY.kr(1,100)).range(0.2,0.3))  ;
