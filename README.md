@@ -76,5 +76,4 @@ Also note that the range of the values you send to the client should be [-1,1].
  Other variables that you can optionally set are: 
   * _kBUTTERFLY_COLORS_: changes the butterfly color, also an array: one value for each butterfly;
   * _kFULL_SCREEN_: whether to enable full screen mode;
-  * _kSHOW_BUTTERFLIES_: whether you want to show and be able to manipulate the butterflies on the screen. Set this value to 
-     false if you prefer to control your synths via MIDI/OSC/etc. and want to use Butterfly only for the visualization part.
+

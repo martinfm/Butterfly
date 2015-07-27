@@ -19,10 +19,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/*-------------------CONFIGURATION -----------------------------*/
+/*-------------------CONFIGURATION-----------------------------*/
 
 var kUGENS_PER_SYNTH = [3, 40, 40, 1];
 var kBUTTERFLY_COLORS = [Color.yellow, Color.green, Color.red, Color.blue];
+var kFULL_SCREEN = true;
 
 
 /*-----------------------INIT----------------------------------*/
@@ -325,55 +326,17 @@ window.onClose_({
     }
   });
 });
+
 /* show GUI */
 
+if(kFULL_SCREEN){
+  window.fullScreen;
+};
 
-
-//window.fullScreen;
 window.front;
-
-
 
 )
 
 
-
-d.free
-(
-d =  {
- // the same
- Mix.fill(40, { arg i ;
-    var p =  Pulse.ar(Pulse.kr(4+(i*1), mul: 1/40).range(20,100) , width:SinOsc.kr(MouseY.kr(1,100)).range(0.2,0.3))  ;
-     p = p.tanh;
-
-    p = LeakDC.ar(p) * MouseX.kr(0,1);
-
-   SendTrig.kr(Impulse.kr(60) , i, p.range(-1,1));
-
-    p * [1,1];
-  })
-
- }.play ;
- )
-
-
-d = Synth(\mixfill)
-d.free
-(
-SynthDef(\butterfly_2, {
- // the same
- Mix.fill(40, { arg i ;
-    var p =  Pulse.ar(Pulse.kr(4+(i*1), mul: 1/40).range(20,100) , width:SinOsc.kr(MouseY.kr(1,100)).range(0.2,0.3))  ;
-     p = p.tanh;
-
-    p = LeakDC.ar(p) * MouseX.kr(0,1);
-
-   SendTrig.kr(Impulse.kr(60) , i, p.range(-1,1));
-
-    Out.ar(0,p * [1,1]);
-  })
-
-}).add ;
- )
 
 
