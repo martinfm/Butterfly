@@ -21,9 +21,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 /*-------------------CONFIGURATION-----------------------------*/
 
-var kUGENS_PER_SYNTH = [3, 40, 40, 1];
+var kUGENS_PER_SYNTH = [12, 40, 35, 3];
 var kBUTTERFLY_COLORS = [Color.yellow, Color.green, Color.red, Color.blue];
-var kFULL_SCREEN = true;
+var kFULL_SCREEN = false;
 
 
 /*-----------------------INIT----------------------------------*/
@@ -205,7 +205,7 @@ canvas.mouseDownAction_{|thisCanvas, x, y, modifiers, buttonNumber, clickCount|
         if(controller.mButterfly.f_isOn()){
           /* turn the synth on */
           var normCoord = controller.mButterfly.f_toNormalCoord();
-          var synth = Synth(("butterfly_"++i).asSymbol, [\x, normCoord.x, \y, normCoord.x] );
+          var synth = Synth(("butterfly_"++i).asSymbol, [\x, normCoord.x, \y, normCoord.y] );
           var sprites = controller.mSprites;
           var bounds = canvas.bounds;
           var offset = bounds.width / (kUGENS_PER_SYNTH[i] * 2);
