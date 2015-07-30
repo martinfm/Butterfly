@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 var kUGENS_PER_SYNTH = [12, 40, 35, 3];
 var kBUTTERFLY_COLORS = [Color.yellow, Color.green, Color.red, Color.blue];
-var kFULL_SCREEN = false;
+var kFULL_SCREEN = true;
 
 
 /*-----------------------INIT----------------------------------*/
