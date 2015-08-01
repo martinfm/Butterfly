@@ -1,6 +1,8 @@
 # Butterfly
 An audio visualizer for SuperCollider synths inspired by the butterfly effect.
 
+![Butterfly at Gen.AV](http://c1.staticflickr.com/1/290/19553838083_1f0e9d9214_c.jpg)
+Photo by Nuno Correia. All rights reserved.
 
 ### Introduction
 
